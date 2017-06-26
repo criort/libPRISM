@@ -1,4 +1,4 @@
 # libPRISM
 
 This is the repository for the work "PRISM: An Intelligent Adaptation of Prefetch and SMT Levels".  
-Pending publication.
+Code is under review. It will be published soon.
