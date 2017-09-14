@@ -1,0 +1,13 @@
+INSTALL
+Makefile.in
+aclocal.m4
+autom4te.cache/
+config.h.in
+config/
+configure
+m4/
+src/Makefile.in
+src/policies/Makefile.in
+src/sensors/Makefile.in
+src/utils/Makefile.in
+src/wrappers/Makefile.in

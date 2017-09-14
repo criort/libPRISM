@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# ============================================================================ #
+# Copyright (c) 2017, Barcelona Supercomputing Center and International Business Machines.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# ============================================================================ #
+
+#Cristobal Ortega <cortega@bsc.es>, <cristo@us.ibm.com>
+
+set -e
+
+CDIR=`dirname $0`
+CDIR=`readlink -f $CDIR`
+CORES=`cat /proc/cpuinfo | grep processor | wc -l`
+
+BUILD_DIR=$1
+if [ "$BUILD_DIR" == "" ]; then
+  echo "Usage: bootstrap DIR"
+  echo "DIR: directory where libPRISM will be built"
+  exit -1
+fi
+
+echo Install dir: $BUILD_DIR
+if [ ! -d "$BUILD_DIR" ]; then
+  echo "Install dir $BUILD_DIR does not exist!"
+  exit -1
+else
+  cd $BUILD_DIR
+  BUILD_DIR=`pwd -P`
+  cd - 2> /dev/null
+fi
+
+cd $CDIR
+
+echo Cleaning up source tree ...
+./cleanup
+
+echo Cleaning up $BUILD_DIR
+rm -fr $BUILD_DIR/*
+
+echo Setting up autotools ...
+if [ ! -d m4 ]; then
+    mkdir m4
+fi
+if [ ! -d config ]; then
+    mkdir config
+fi
+echo autoreconf --force --install -I config -I m4
+autoreconf --force --install -I config -I m4
+echo Done
+
+echo "Configuring and building versions..."
+
+echo "Performance version..."
+mkdir -p ${BUILD_DIR}/build/PERFORMANCE/
+mkdir -p ${BUILD_DIR}/install/PERFORMANCE/
+cd ${BUILD_DIR}/build/PERFORMANCE/
+${CDIR}/configure --prefix ${BUILD_DIR}/install/PERFORMANCE/
+
+make -j $CORES
+make install
+make check
+cd $CDIR
+echo "Done"
+
+echo "Debug version..."
+mkdir -p ${BUILD_DIR}/build/DEBUG/
+cd ${BUILD_DIR}/build/DEBUG/
+${CDIR}/configure --enable-debug --prefix ${BUILD_DIR}/install/DEBUG/
+make -j $CORES
+make install
+make check
+cd $CDIR
+echo "Done"
+
+echo "Timing version..."
+mkdir -p ${BUILD_DIR}/build/TIMING/
+cd ${BUILD_DIR}/build/TIMING/
+${CDIR}/configure --enable-timing --prefix ${BUILD_DIR}/install/TIMING/
+make -j $CORES
+make install
+make check
+cd $CDIR
+echo "Done"
+
+echo "Do you want to build the documentation? Doxygen is required for this step. (Y/N)?"
+read answer
+
+if [ "$answer" == "Y" ] || [ "$answer" == "y" ]; then
+  echo "Building documentation..."
+  cd ${BUILD_DIR} && doxygen ${CDIR}/doxygen.cfg && cd -
+  echo "Documentation placed: ${BUILD_DIR}/doc"
+  echo "Done"
+fi
+
+echo "Do you want initalize the styleguide? (Y/N)?"
+read answer
+if [ "$answer" == "Y" ] || [ "$answer" == "y" ]; then
+  git submodule init
+  git submodule update
+fi
+

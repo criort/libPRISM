@@ -1,0 +1,210 @@
+/**
+\mainpage libPRISM Documentation
+
+\note WARNING: This is an experimental library. See \ref copyright
+
+Original repository:<https://github.com/criort/libPRISM>
+
+\b Dependencies:<br>
+  - autoconf: libPRISM uses the autoconf package to generate the configure scripts and makefiles
+
+\b Usage:<br>
+  libPRISM relies on the library interposition mechanism of Linux.<br>
+  To run an application with libPRISM support:<br>
+  LD_PRELOAD="/path/to/libPRISM/wrapper/" ./application<br>
+  You need to take into account several environment variables for the behavior of libPRISM. See page \subpage envVars <br>
+
+For a more detailed usage see \subpage usage.
+
+In the \subpage design page, there is more documentation on the folder hierarchy. <br>
+In the \subpage stats page, you can find information about the possible statistics to be printed at the end of the execution.
+
+\b Contact \b information:<br>
+Feel free to email me to: cortega at bsc.es
+
+*/
+
+
+/** \page usage Usage
+Once is compiled (see \ref readme file) we have the wrapper and the libPRISM library at some directory.
+We will suppose we built libPRISM in the /build/ directory.
+Therefore, we need to locate the wrapper and the library itself:
+  - Wrapper: /build/wrappers/.libs/libPRISM-omp-wrapper.so (we will suppose the OMP wrapper is used)
+  - library: /build/.libs/libPRISM-0.1.so
+
+
+The basic usage of libPRISM is:
+  LD_PRELOAD="/build/wrappers/.libs/libPRISM-omp-wrapper.so" ./application<br>
+
+With this, your application should get the benefits of using libPRISM: an adaptive hardware.
+You can use libPRISM in a bit more advanced way:
+libPRISM records data about the performance of the different parallel regions, you can get this data at the end of the execution.
+See \ref envVars and \ref stats pages for more information.
+
+*/
+
+/** \page design Design
+
+The hierarchy of libPRISM is represented in the /src/ directory, which contains the source code.
+/src/ directory has the following hierarchy:
+
+- policies: existing and future policies
+- sensors: every method to collect information about the system where libPRISM is running
+- utils: auxiliary functions
+- wrappers: wrappers for different programming models
+
+Also, /src/ folder contains the files for the main communication between wrappers and the library libPRISM itself (Driver.cpp and Driver.h)
+
+It is possible to extend the abilities of libPRISM by adding new policies, new sensors or new programming model hooks.
+You will need to code your new policy/sensor/programming model hook
+in their corresponding directory. Then, add the new files to the Makefile.am of
+the new feature and in the parent directory of the new feature.
+
+*/
+
+/** \page readme README
+
+\include README
+
+*/
+
+/** \page todo TODO List
+
+This TODO list is automatically generated from the TODO file in the source
+directory of libPRISM.
+
+\include TODO
+
+*/
+/** \page exploration Exploration policy
+
+This dynamic policy improves performance of applications automatically.
+In order to do so, it adapts the SMT level and the data prefetcher hardware
+knobs to a better configuration than the default.<br>
+The algorithm does a greedy search for the SMT  hardware knob. Once this
+hardware knob is tuned, it performs a second greedy search for the data
+prefetcher knob.<br>
+Once the training phase is finished, it tracks the behavior of the region in
+case a re-exploration is needed.<br>
+The requirements for this policy is that the application have a repetitive
+behavior and parallel regions coded with OpenMP.<br>
+
+For example, this loop:<br>
+\verbatim
+for(i = 0; i < N; ++i)
+    #pragma omp parallel for
+    for(j = 0; j < M; ++j) {
+        // Calculations
+    }
+\endverbatim
+
+Here, the exploration policy will spend some iterations from the N iterations
+to tune the inner loop.
+
+*/
+
+/** \page envVars Environment variables
+
+This is the list of environment variables that modify the behavior of libPRISM.
+
+- PRISM_PMCS="[PM1,PM2,PM3]"<br>
+If empty, PM_CYC and PM_INST_CMPL are selected<br>
+There is no control of this input, if wrong PMCs are selected the execution could stop.<br>
+Please, check that the desired PMCs are available in your system before setting a particular set of PMCs.
+
+- PRISM_STATS=[resumeSimple]<br>
+If empty, no statistics will be printed at the end of the execution.<br>
+New format for statistics can be added in /src/policies/Policy.cpp<br>
+See \ref stats page for more information on the statistics.<br>
+
+- PRISM_GENERATE_REPORT=[0/1]<br>
+If empty, it is treated as 0.<br>
+If 0, no report is generated, otherwise it will print statistics with the format from PRISM_STATS to standard error output or PRISM_REPORT_NAME file if such variable is not empty.<br>
+
+- PRISM_REPORT_NAME=[fileName]<br>
+If empty, no file will be created, otherwise a file with name fileName will be created with the statistics with the format selected from PRISM_STATS.<br>
+
+- PRISM_POLICY=[dummy/oracle/exploration]<br>
+Select what policy PRISM will follow:<br>
+dummy: do nothing, just profile the different parallel regions found in the execution.<br>
+oracle: set the hardware knobs for several parallel regions with a provided configuration (it needs the variable PRISM_ORACLE_CONFIG set)<br>
+exploration: automatically select the best hardware knob configuration found for every parallel region. For more information see \subpage exploration page<br>
+
+- PRISM_ORACLE_CONFIG<br>
+Path of a file with information of the hardware knob configuration desired for different parallel regions.<br>
+The file expects the following format:<br>
+PC:SMT:PREF<br>
+Where function with Program Counter <i>PC</i> will be executed with SMT level and prefetcher configuration PREF<br>
+Each line should contain an unique PC.<br>
+
+
+- PRISM_LEVEL<br>
+OpenMP allows nested parallelism.<br>
+libPRISM allows stopping exploring parallel regions to certain level.<br>
+A higher level of nested parallelism could translate to a more fine-grain parallel regions, which can suppose more overheads for reconfiguring the hardware.<br>
+This level is controlled with the PRISM_LEVEL variable. libPRISM will stop exploring nested parallel regions with a higher nested parallelism level than PRISM_LEVEL.<br>
+\verbatim
+for(i = 0; i < N; ++i)
+    #pragma omp parallel for
+    for(j = 0; j < M; ++j) {
+        // Calculations
+        // Level of parallelism: 1
+        #pragma omp parallel for
+        for(k = 0; k < M2; ++k) {
+            // Calculations
+            // Level of parallelism: 2
+        }
+    }
+\endverbatim
+In this example, if PRISM_LEVEL is set to 1 libPRISM will NOT tune the inner loop from k = 0 to M2.<br>
+*/
+
+/** \page stats Statistics
+
+The following list explains what is the format of the implemented statistics:<br>
+-resumeSimple<br>
+For every parallel region it will print a line with the following information:<br>
+  - Program Counter of the parallel region<br>
+  - Number of threads used in the parallel region<br>
+  - Iterations of the parallel region (number of times that particular parallel region was executed)<br>
+  - Time spent executing the parallel region<br>
+  - IPC, average Instructions Per Cycle of the parallel region<br>
+  - Pref, average prefetcher configuration used in the parallel region<br>
+After printing all the parallel regions executed with the previous information,<br>
+a trace of the execution of the parallel regions will be printed with the following format:<br>
+  - Program Counter:Iteration<br>
+
+*/
+
+/** \page copyright Copyright and License
+Copyright (c) 2017, Barcelona Supercomputing Center and International Business Machines.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+*/
+

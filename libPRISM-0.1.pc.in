@@ -1,0 +1,8 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: PRISM-0.1
+Description: An intelligent adaptation of prefetch and SMT levels
+Version: @PACKAGE_VERSION@
