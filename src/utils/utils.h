@@ -35,11 +35,14 @@
 #define SRC_UTILS_UTILS_H_
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
 #include <string>
 #include <sstream>
 #include <vector>
 #include <cstdint>
+#include <sys/time.h>
+#include <unistd.h>
 #include "./config.h"
 
 #define _FREQUENCY_ 3000000000.0
@@ -63,7 +66,12 @@
 
 #endif
 #else
-#define _GETTIME_ 0
+//#define _GETTIME_ clock()
+long x86GetTime();
+#define _GETTIME_ x86GetTime()
+
+//#define _TICKSPERSECOND_  (CLOCKS_PER_SEC)
+#define _TICKSPERSECOND_  (1000)
 #endif
 
 #ifdef DEBUG

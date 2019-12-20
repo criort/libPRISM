@@ -40,7 +40,7 @@ ExplorationPolicy::ExplorationPolicy() {
 
   std::string aux = getVarEnv("PRISM_EXPLORATION_REPETIONS");
   if (aux.empty())
-    REPETIONS = 5;
+    REPETIONS = 1;
   else
     REPETIONS = atoi(aux.c_str());
 
@@ -52,25 +52,25 @@ ExplorationPolicy::ExplorationPolicy() {
 
   aux = getVarEnv("PRISM_EXPLORATION_WAIT_CHANGE_THREAD");
   if (aux.empty())
-    WAIT_CHANGE_THREADS = 1;
+    WAIT_CHANGE_THREADS = 0;
   else
     WAIT_CHANGE_THREADS = atoi(aux.c_str());
 
   aux = getVarEnv("PRISM_EXPLORATION_THRESHOLD");
   if (aux.empty())
-    THRESHOLD_TIME = 0.01;
+    THRESHOLD_TIME = 0.1;
   else
     THRESHOLD_TIME = atof(aux.c_str());
 
-  _path[0] = 48;
-  _path[1] = 24;
-  _path[2] = 12;
-  _path[3] = 6;
-  sizePath = 4;
-  _pathPref[0] = 16;
-  _pathPref[1] = 7;
-  _pathPref[2] = 0;
-  _pathPref[3] = 1;
+  _path[0] = 8;
+  _path[1] = 4;
+  //_path[2] = 12;
+  //_path[3] = 6;
+  sizePath = 2;
+  _pathPref[0] = 0;
+  _pathPref[1] = 9;
+  _pathPref[2] = 6;
+  _pathPref[3] = 15;
   sizePathPref = 4;
   debug("Exploration configuration");
   debug("repetions: %i", REPETIONS);
@@ -255,7 +255,7 @@ void ExplorationPolicy::bestConfig(int PC, int iteration) {
       _stats[PC].REPETIONS += 3;
       _stats[PC].numChars = 0;
       ++_stats[PC].resets;
-      if ( _stats[PC].REPETIONS > 15 ) {
+      if ( _stats[PC].REPETIONS > 0 ) {
         debug("RREPETIONS greater than 5");
         _stats[PC].characterized = 1;
         _stats[PC].stopCharacterizing = 1;

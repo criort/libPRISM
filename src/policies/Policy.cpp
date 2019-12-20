@@ -75,6 +75,8 @@ Policy::~Policy() {
   std::string generateReport = getVarEnv("PRISM_GENERATE_REPORT");
   int toFile;
 
+  debug("PRISM_STATS: %s", stats.c_str());
+  debug("PRISM_GENERATE_REPORT: %s", generateReport.c_str());
   if (generateReport.empty() || generateReport == "0" )
     toFile = 0;
   else
@@ -388,11 +390,127 @@ void Policy::setNumThreads(int num_threads) {
   if (this->nthreads != num_threads) {
     debug("Before set threads");
     omp_set_num_threads(num_threads);
+		// Add this to force no HyperThreading
+
+		std::string folder = "/sys/devices/system/cpu/cpu";
+		int on = 1;
+		int off = 0;
+		int value = (num_threads == 8) ? on : off;
+		//Change only last 4 logical threads
+		for (unsigned int i = 4; i < 8; i++) {
+			uint64_t tmp = i;
+			std::string file = folder + std::to_string(tmp) + "/online";
+			debug("Changing ONLINE of %s with value: %i", file.c_str(), value);
+			std::ofstream of(file, std::ofstream::out);
+			of << value;
+			of.close();
+			//std::ofstream of(file, std::ios::binary);
+			//of.write(reinterpret_cast<char *>(&value), sizeof(value));
+			//of.close();
+		}
+
+
+		//
     debug("After set threads");
     this->nthreads = num_threads;
   }
 }
 
+void wrmsr_on_cpu(uint32_t reg, int cpu, int valcnt, char *regvals[])
+{
+	uint64_t data;
+	int fd;
+	char msr_file_name[64];
+
+	sprintf(msr_file_name, "/dev/cpu/%d/msr", cpu);
+	fd = open(msr_file_name, O_WRONLY);
+	if (fd < 0) {
+		if (errno == ENXIO) {
+			fprintf(stderr, "wrmsr: No CPU %d\n", cpu);
+			exit(2);
+		} else if (errno == EIO) {
+			fprintf(stderr, "wrmsr: CPU %d doesn't support MSRs\n",
+				cpu);
+			exit(3);
+		} else {
+			perror("wrmsr: open");
+			exit(127);
+		}
+	}
+
+	while (valcnt--) {
+		data = strtoull(*regvals++, NULL, 0);
+		if (pwrite(fd, &data, sizeof data, reg) != sizeof data) {
+			if (errno == EIO) {
+				fprintf(stderr,
+					"wrmsr: CPU %d cannot set MSR "
+					"0x%08"PRIx32" to 0x%016"PRIx64"\n",
+					cpu, reg, data);
+				exit(4);
+			} else {
+				perror("wrmsr: pwrite");
+				exit(127);
+			}
+		}
+	}
+
+	close(fd);
+
+	return;
+}
+
+int dir_filter(const struct dirent *dirp)
+{
+	if (isdigit(dirp->d_name[0]))
+		return 1;
+	else
+		return 0;
+}
+
+void wrmsr_on_all_cpus(uint32_t reg, int valcnt, char *regvals[])
+{
+	struct dirent **namelist;
+	int dir_entries;
+
+	dir_entries = scandir("/dev/cpu", &namelist, dir_filter, 0);
+	while (dir_entries--) {
+		wrmsr_on_cpu(reg, atoi(namelist[dir_entries]->d_name),
+				valcnt, regvals);
+		free(namelist[dir_entries]);
+	}
+	free(namelist);
+}
+
+
+void setPrefetcherInternal(int value) {
+	debug("Setting Prefetcher internal");
+	uint32_t reg = strtoul("0x1A4", NULL, 0);
+	std::string s = std::to_string(value);
+	char *pchar = s.c_str();  //use char const* as target type
+	debug("Before wrmsr_on_all_cpus");
+	wrmsr_on_all_cpus(reg, 1, &pchar);
+  //std::string folder = "/sys/devices/system/cpu/cpu";
+  //int fd, rc, len;
+  //char* str;
+  //uint64_t tmp;
+  //for (int i = 0; i < 48; ++i) {
+    //tmp = i;
+    //std::string file = folder + std::to_string(tmp) + "/dscr";
+    //debug("Changing DSCR of %s with value: %i", file.c_str(), value);
+
+    //fd = open(file.c_str(), O_WRONLY);
+    //len = asprintf(&str, "%x", value);
+    //rc = write(fd, str, len);
+    //free(str);
+    //if (rc == -1)
+      //debug("Error writting to DSCR register");
+    //close(fd);
+  //}
+}
+
+
+// IBM POWER8
+/*
 void setPrefetcherInternal(int value) {
   std::string folder = "/sys/devices/system/cpu/cpu";
   int fd, rc, len;
@@ -412,6 +530,7 @@ void setPrefetcherInternal(int value) {
     close(fd);
   }
 }
+*/
 
 void Policy::setPrefetcher(int value) {
   debug("Policy changing prefetcher to: %i", value);

@@ -197,7 +197,7 @@ extern "C" void GOMP_free_thread(void *p1) {
 }
 
 extern "C" void GOMP_parallel (void *p1, void *p2, unsigned p3, unsigned p4) {
-  int r_PC = -1;
+  int r_PC = (int) __builtin_return_address(0);
 
 #if defined (__powerpc64__) || defined(__powerpc64__)
   r_PC = mfspr(8);
@@ -224,7 +224,8 @@ extern "C" void GOMP_parallel (void *p1, void *p2, unsigned p3, unsigned p4) {
 }
 
 extern "C" void GOMP_parallel_start(void *p1, void *p2, unsigned p3) {
-  int r_PC = -1;
+  //int r_PC = (int) __builtin_extract_return_addr(__builtin_return_address(0));
+  int r_PC = (int) __builtin_return_address(0);
 
 #if defined (__powerpc64__) || defined(__powerpc64__)
   r_PC = mfspr(8);

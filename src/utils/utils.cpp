@@ -33,6 +33,14 @@
 
 #include "src/utils/utils.h"
 
+
+long x86GetTime() {
+  struct timeval timecheck;
+  gettimeofday(&timecheck, NULL);
+  long start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+  return start;
+}
+
 std::string getVarEnv(std::string var) {
   char* cVar;
   cVar = getenv(var.c_str());

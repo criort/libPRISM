@@ -144,10 +144,13 @@ PMCDriver::PMCDriver() {
   if (ret != PFM_SUCCESS)
     debug("init of libPFM failed");
 
-  this->events = new char[strlen(events)];
-  // strcpy(this->events, events);
-  snprintf(this->events, strlen(events), events);
+  debug("%s", events);
 
+  this->events = new char[strlen(events)];
+  strcpy(this->events, events);
+  //snprintf(this->events, strlen(events-1), "%s", events);
+
+  debug("%s", this->events);
   this->num_fds = this->getNum();
 }
 
@@ -275,13 +278,14 @@ int PMCDriver::getNum() {
   std::vector<char*> v;
   unsigned int length = strlen(this->events);
   char *eventsCopy = reinterpret_cast<char *>(malloc(length * sizeof(char)));
-  // strcpy(eventsCopy, this->events);
-  snprintf(this->events, length, events);
+  strcpy(eventsCopy, this->events);
+  //debug("eventsCopy: %s", eventsCopy);
+  //snprintf(this->events, length, events);
   // char* chars_array = strtok(eventsCopy, ",");
   char *saveptr;
   char* chars_array = strtok_r(eventsCopy, ",", &saveptr);
   while (chars_array) {
-    debug("%s", chars_array);
+    //debug("%s", chars_array);
     // chars_array = strtok(NULL, ",");
     chars_array = strtok_r(NULL, ",", &saveptr);
     ++count;
@@ -293,14 +297,14 @@ std::string PMCDriver::getName(int i) {
   int count = 0;
   unsigned int length = strlen(this->events);
   char *eventsCopy = reinterpret_cast<char *>(malloc(length * sizeof(char)));
-  // strcpy(eventsCopy, this->events);
-  snprintf(this->events, length, events);
+  strcpy(eventsCopy, this->events);
+  //snprintf(this->events, length, events);
   std::vector<char*> v;
   // char* chars_array = strtok(eventsCopy, ",");
   char *saveptr;
   char* chars_array = strtok_r(eventsCopy, ",", &saveptr);
   while (chars_array) {
-    debug("%s", chars_array);
+    //debug("%s", chars_array);
     if (count == i)
       return chars_array;
 
